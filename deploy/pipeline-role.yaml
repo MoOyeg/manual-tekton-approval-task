@@ -1,0 +1,27 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: create-pipeline-requisite
+  namespace: tekton-manual-demo-preprod
+rules:
+  - apiGroups:
+      - '*'
+    resources:
+      - pods
+      - services
+      - serviceaccounts
+      - secrets
+      - routes
+      - buildconfigs
+      - builds
+      - imagestreams
+      - imagestreamimports
+      - imagestreamtags
+    verbs:
+      - create
+      - delete
+      - update
+      - get
+      - list
+      - watch
+      - patch

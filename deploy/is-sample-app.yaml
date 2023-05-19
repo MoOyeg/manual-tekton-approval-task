@@ -1,0 +1,13 @@
+kind: ImageStream
+apiVersion: image.openshift.io/v1
+metadata:
+  name: sample-manual-app
+  namespace: tekton-manual-demo-preprod
+  labels:
+    app: sample-manual-app
+spec:
+  lookupPolicy:
+    local: false
+status:
+  dockerImageRepository: >-
+    image-registry.openshift-image-registry.svc:5000/tekton-manual-demo-preprod/sample-manual-app

@@ -1,0 +1,13 @@
+kind: Route
+apiVersion: route.openshift.io/v1
+metadata:
+  name: sample-app-demo
+  namespace: tekton-manual-demo-prod
+spec:
+  to:
+    kind: Service
+    name: sample-app-demo
+    weight: 100
+  port:
+    targetPort: 3000
+  wildcardPolicy: None
