@@ -380,7 +380,9 @@ spec:
                     - name: PROMOTE_COMMAND
                       value: \"${PROMOTE_COMMAND}\"
                     - name: PROMOTE_NAMESPACE
-                      value: \"${PROMOTE_NAMESPACE}\"                
+                      value: \"${PROMOTE_NAMESPACE}\"
+                    - name: APPROVAL_FILE_LOCATION
+                      value: \"/memory-storage/approval_secret\"              
                   envFrom:
                     - secretRef:
                         name: ${PIPELINE_RUN_NAME}-tekton-secret

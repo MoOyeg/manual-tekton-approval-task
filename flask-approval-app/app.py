@@ -50,9 +50,8 @@ def get_app_failure_message():
 
 def onfailure_update_disk(msg):
     '''Update Disk with Failure'''
-    try:
-        #tekton_instance_name=os.environ.get('TEKTON_INSTANCE_SECRET')
-        with open('/memory-storage/{}'.format("approval_status"), 'w') as f:
+    try:        
+        with open(os.environ.get('APPROVAL_FILE_LOCATION'), 'w') as f:
             f.write("Error")
     except Exception as e:
         logger.error("Error writing error decision to disk - will exit")
@@ -62,9 +61,11 @@ def onfailure_update_disk(msg):
 
 def set_approval_status(approval_string):
     '''Set Approval Status'''
+    global app_approved
+    global app_dispproved
+    
     try:
-        #tekton_instance_name=os.environ.get('TEKTON_INSTANCE_SECRET')
-        with open('/memory-storage/{}'.format("approval_status"), 'w') as f:
+        with open(os.environ.get('APPROVAL_FILE_LOCATION'), 'w') as f:
             f.write(approval_string)
     except Exception as e:
         error_msg="Error writing approval decision to disk - will exit"
@@ -155,7 +156,7 @@ def approval_status():
             try:
                 approval_string=os.environ.get('UNIQUE_APPROVED_SECRET')
             except Exception as e:
-                error_msg="Error getting $UNIQUE_APPROVED_SECRET info from environment - will exit"
+                error_msg="Error getting unique approval string info from environment - will exit"
                 logger.error("{}-{}".format(error_msg,e))
                 return onfailure_update_disk(error_msg)          
                
@@ -164,7 +165,7 @@ def approval_status():
             try:
                 approval_string=os.environ.get('UNIQUE_DENIED_SECRET')                
             except Exception as e:
-                error_msg="Error getting $UNIQUE_DENIED_SECRET info from environment - will exit"
+                error_msg="Error getting unique disapproval string info from environment - will exit"
                 logger.error("{}-{}".format(error_msg,e))
                 return onfailure_update_disk(error_msg) 
         
@@ -174,15 +175,17 @@ def approval_status():
         return onfailure_update_disk(error_msg)   
     
     try: 
-        set_approval_status(approval_string)
-        if get_app_failure_status:
+        return_msg=set_approval_status(approval_string)
+        if get_app_failure_status():
             error_msg=get_app_failure_message()
             logger.error("{} - {}".format("We ran into an error",error_msg))
             return onfailure_update_disk(error_msg)
     except Exception as e:
-        error_msg="Error writing approval decision to disk - will exit"
+        error_msg="Error setting approval status - will exit"
         logger.error("{}-{}".format(error_msg,e))
-        return onfailure_update_disk(error_msg)            
+        return onfailure_update_disk(error_msg)
+    
+    return return_msg         
 
 if __name__ == '__main__':
     logger.info("Starting Approval App") 
