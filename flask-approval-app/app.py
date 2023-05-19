@@ -67,10 +67,10 @@ def set_approval_status(approval_string):
         with open('/memory-storage/{}'.format("approval_status"), 'w') as f:
             f.write(approval_string)
     except Exception as e:
-        logger.error("Error writing approval decision to disk - will exit")
+        error_msg="Error writing approval decision to disk - will exit"
         logger.error("{}-{}".format(error_msg,e))
-        onfailure_update_disk(error_msg)
-        return None
+        return onfailure_update_disk(error_msg)
+
     
     if approval_string == os.environ.get('UNIQUE_APPROVED_SECRET'):
         logger.info("Promotion Process has been Approved, will continue Pipeline Run")
@@ -175,6 +175,10 @@ def approval_status():
     
     try: 
         set_approval_status(approval_string)
+        if get_app_failure_status:
+            error_msg=get_app_failure_message()
+            logger.error("{} - {}".format("We ran into an error",error_msg))
+            return onfailure_update_disk(error_msg)
     except Exception as e:
         error_msg="Error writing approval decision to disk - will exit"
         logger.error("{}-{}".format(error_msg,e))

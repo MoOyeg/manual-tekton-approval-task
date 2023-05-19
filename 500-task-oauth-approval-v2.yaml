@@ -26,11 +26,11 @@ spec:
   - name: OAUTH_APPROVER_SRC
     description: Source Code to get the code for Web Application that provides UI for Approval of Pipeline
     type: string
-    default: "https://github.com/MoOyeg/testFlask-tekton.git"
+    default: "https://github.com/MoOyeg/manual-tekton-approval-task.git"
   - name: OAUTH_APPROVER_BRANCH
     description: Branch to get the code for Web Application that provides UI for Approval of Pipeline
     type: string
-    default: "oauth-approval-feature"
+    default: "working"
     #default: "master"
   - name: OAUTH_APPROVER_CONTEXT_DIR
     description: Context Directory to get the code for Web Application that provides UI for Approval of Pipeline

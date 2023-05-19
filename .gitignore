@@ -1,1 +1,3 @@
 flask-approval-app/__pycache__/app.cpython-310.pyc
+venv/*
+.env
