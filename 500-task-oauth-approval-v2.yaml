@@ -262,9 +262,10 @@ spec:
               echo -e "Oauth Proxy Image already exists\n"
             else
               echo -e "Building Oauth Proxy Pod Image\n"
-              oc new-build golang:1.17-ubi8~${OPENSHIFT_OAUTH_PROXY_SRC}#${OPENSHIFT_OAUTH_PROXY_BRANCH} \
+              oc new-build ${OPENSHIFT_OAUTH_PROXY_SRC}#${OPENSHIFT_OAUTH_PROXY_BRANCH} \
               --name=${PIPELINE_RUN_NAME}-oauth-proxy-image --strategy=docker \
               --context-dir=${OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR} \
+              --image-stream="openshift/golang:1.18-ubi7" \
               -n ${OAUTH_APPROVAL_POD_NAMESPACE}
               
               if [ $? -ne 0 ]; then
@@ -413,7 +414,7 @@ spec:
                       fi
 
                       echo "Starting oauth proxy"
-                      oauth-proxy -provider=openshift \
+                      ./oauth-proxy -provider=openshift \
                       -request-logging=true \
                       -https-address=:8888 \
                       -http-address= \
@@ -425,7 +426,7 @@ spec:
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
                       -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
                       -request-message=\"Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\" \
-                      -info-link=\"\$OAUTH_ROUTE_NAME)\"
+                      -info-link=\"\$OAUTH_ROUTE_NAME\"
                 - name: oauth-approval-app-pod
                   image: ${OAUTH_APPROVER_IMAGE}
                   command:
