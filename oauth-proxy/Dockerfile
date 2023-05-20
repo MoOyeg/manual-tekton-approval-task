@@ -1,8 +1,9 @@
-FROM image-registry.openshift-image-registry.svc:5000/openshift/golang:1.17-ubi8 AS builder
-WORKDIR  /go/src/github.com/openshift/oauth-proxy
-COPY . .
-RUN go build .
-
-FROM image-registry.openshift-image-registry.svc:5000/openshift/golang:1.17-ubi8
-COPY --from=builder /go/src/github.com/openshift/oauth-proxy/oauth-proxy /usr/bin/oauth-proxy
+FROM registry.access.redhat.com/ubi7
+USER root
+RUN yum install -y git make gcc && \
+curl -L -o go1.16.2.linux-amd64.tar.gz -C - https://golang.org/dl/go1.16.2.linux-amd64.tar.gz && \
+rm -rf /usr/local/go && tar -C /usr/local -xzf go1.16.2.linux-amd64.tar.gz && \
+export PATH=$PATH:/usr/local/go/bin && git clone https://github.com/openshift/oauth-proxy.git && \
+cd oauth-proxy/ && make
+USER 1001
 ENTRYPOINT ["/usr/bin/oauth-proxy"]
