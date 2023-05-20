@@ -422,7 +422,8 @@ spec:
                       -cookie-secret-file=/memory-storage/session-secret \
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
                       -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-                      -footer=\"Please confirm this value from [PipelineLogs](\$OAUTH_ROUTE_NAME) before login - \$TEKTON_INSTANCE_SECRET\"
+                      -request-message=\"Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\"
+                      -info-link=\"\$OAUTH_ROUTE_NAME)\"
                 - name: oauth-approval-app-pod
                   image: image-registry.openshift-image-registry.svc:5000/${OAUTH_APPROVAL_POD_NAMESPACE}/${PIPELINE_RUN_NAME}-oauth-approval:latest
                   command:
