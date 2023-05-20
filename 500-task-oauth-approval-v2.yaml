@@ -348,6 +348,8 @@ spec:
                         done
                       fi
 
+                      chgrp -R 0 /memory-storage && chmod -R g=u /memory-storage
+
                       oc extract secret/${PIPELINE_RUN_NAME}-secret-tls --keys=tls.crt --to=/memory-storage -n ${OAUTH_APPROVAL_POD_NAMESPACE}
                       echo -e "Extracted TLS Cert for Oauth Pod\n"
 
