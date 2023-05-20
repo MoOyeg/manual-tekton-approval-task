@@ -6,5 +6,5 @@ rm -rf /usr/local/go && tar -C /usr/local -xzf go1.16.2.linux-amd64.tar.gz && \
 export PATH=$PATH:/usr/local/go/bin && git clone https://github.com/openshift/oauth-proxy.git && \
 cd oauth-proxy/ && make 
 USER 1001
-ENV $PATH:/opt/app-root/src/oauth-proxy
+ENV PATH="$PATH:/opt/app-root/src/oauth-proxy"
 ENTRYPOINT ["/usr/bin/oauth-proxy"]
