@@ -414,7 +414,7 @@ spec:
                       fi
 
                       echo "Starting oauth proxy"
-                      ./oauth-proxy -provider=openshift \
+                      oauth-proxy -provider=openshift \
                       -request-logging=true \
                       -https-address=:8888 \
                       -http-address= \
