@@ -113,7 +113,7 @@ spec:
           echo "Test"
   steps:
     - name: create-approval-infrastructure-pod
-      #image: quay.io/openshift/origin-cli:$(params.OC_VERSION) Need an imge with oc and git
+      #image: quay.io/openshift/origin-cli:$(params.OC_VERSION) Need an image with oc and git
       image: quay.io/mooyeg/oc-git:latest
       command:
         - /bin/bash
@@ -226,6 +226,9 @@ spec:
           echo "Create Route for Oauth Pod"
           oc create route passthrough ${PIPELINE_RUN_NAME} --service ${PIPELINE_RUN_NAME} --port oauth-proxy -n ${OAUTH_APPROVAL_POD_NAMESPACE} --dry-run=client -o yaml | oc apply -f - || echo "Route already exists or we couldnt create"
           
+          echo "Get Create Route for Oauth Pod"
+          routename=$(oc get route ${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} -o jsonpath='{.spec.host}')
+
           echo "Annotate ServiceAccount for Pipeline"
           oc -n ${OAUTH_APPROVAL_POD_NAMESPACE} annotate serviceaccount ${OAUTH_APPROVAL_POD_SERVICEACCOUNT} --overwrite=true serviceaccounts.openshift.io/oauth-redirectreference.first='{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"'${PIPELINE_RUN_NAME}'"}}'
           
@@ -240,6 +243,7 @@ spec:
         
           oc create secret generic ${PIPELINE_RUN_NAME}-tekton-secret \
           --from-file=TEKTON_INSTANCE_SECRET=/tekton-memory-storage/tektonsecret \
+          --from-literal=OAUTH_ROUTE_NAME=${routename} \
           -n ${OAUTH_APPROVAL_POD_NAMESPACE}
           
           echo "Creating Necessary Infrastructure Pod For Approval"
@@ -362,7 +366,7 @@ spec:
                       -cookie-secret-file=/memory-storage/session-secret \
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
                       -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-                      -footer=\"Please confirm this value from PipelineLogs before login - \$TEKTON_INSTANCE_SECRET\"
+                      -footer=\"Please confirm this value from [PipelineLogs](\$OAUTH_ROUTE_NAME) before login - \$TEKTON_INSTANCE_SECRET\"
                 - name: oauth-approval-app-pod
                   image: image-registry.openshift-image-registry.svc:5000/${OAUTH_APPROVAL_POD_NAMESPACE}/${PIPELINE_RUN_NAME}-oauth-approval:latest
                   command:
