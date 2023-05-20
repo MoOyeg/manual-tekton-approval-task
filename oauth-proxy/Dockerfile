@@ -1,10 +1,12 @@
 FROM registry.redhat.io/ubi8/go-toolset@sha256:6740d72db4de99ecb4652cff89a239242afd150d6ccf6ed0ebff89ffcbbc649e AS builder
 WORKDIR  /go/src/github.com/openshift/oauth-proxy
+USER root
 COPY . .
 RUN go build .
 
 FROM registry.redhat.io/ubi8/go-toolset@sha256:6740d72db4de99ecb4652cff89a239242afd150d6ccf6ed0ebff89ffcbbc649e
 COPY --from=builder /go/src/github.com/openshift/oauth-proxy/oauth-proxy /usr/bin/oauth-proxy
+USER 1001
 ENTRYPOINT ["/usr/bin/oauth-proxy"]
 
 
