@@ -86,6 +86,8 @@ type OAuthProxy struct {
 	compiledSkipRegex   []*regexp.Regexp
 	templates           *template.Template
 	Footer              string
+	RequestMessage      string
+	InfoLink            string
 }
 
 type UpstreamProxy struct {
@@ -293,6 +295,8 @@ func NewOAuthProxy(opts *Options, validator func(string) bool) *OAuthProxy {
 		CookieCipher:        cipher,
 		templates:           loadTemplates(opts.CustomTemplatesDir),
 		Footer:              opts.Footer,
+		InfoLink:            opts.InfoLink,
+		RequestMessage:      opts.RequestMessage,
 	}
 }
 
@@ -469,19 +473,23 @@ func (p *OAuthProxy) SignInPage(rw http.ResponseWriter, req *http.Request, code 
 	}
 
 	t := struct {
-		ProviderName  string
-		SignInMessage string
-		CustomLogin   bool
-		Redirect      string
-		ProxyPrefix   string
-		Footer        template.HTML
+		ProviderName   string
+		SignInMessage  string
+		CustomLogin    bool
+		Redirect       string
+		ProxyPrefix    string
+		RequestMessage string
+		InfoLink       string
+		Footer         template.HTML
 	}{
-		ProviderName:  p.provider.Data().ProviderName,
-		SignInMessage: p.SignInMessage,
-		CustomLogin:   p.displayCustomLoginForm(),
-		Redirect:      redirect_url,
-		ProxyPrefix:   p.ProxyPrefix,
-		Footer:        template.HTML(p.Footer),
+		ProviderName:   p.provider.Data().ProviderName,
+		SignInMessage:  p.SignInMessage,
+		RequestMessage: p.RequestMessage,
+		InfoLink:       p.InfoLink,
+		CustomLogin:    p.displayCustomLoginForm(),
+		Redirect:       redirect_url,
+		ProxyPrefix:    p.ProxyPrefix,
+		Footer:         template.HTML(p.Footer),
 	}
 	p.templates.ExecuteTemplate(rw, "sign_in.html", t)
 }

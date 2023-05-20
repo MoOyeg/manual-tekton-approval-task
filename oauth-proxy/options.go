@@ -42,8 +42,8 @@ type Options struct {
 	DisplayHtpasswdForm     bool     `flag:"display-htpasswd-form" cfg:"display_htpasswd_form"`
 	CustomTemplatesDir      string   `flag:"custom-templates-dir" cfg:"custom_templates_dir"`
 	Footer                  string   `flag:"footer" cfg:"footer"`
-	RequestMessage          string   `flag:"request-message" cfg:"request-message"`
-	InfoLink                string   `flag:"info-link" cfg:"info-link"`
+	RequestMessage          string   `flag:"request-message" cfg:"request_message"`
+	InfoLink                string   `flag:"info-link" cfg:"info_link"`
 
 	OpenShiftSAR            string   `flag:"openshift-sar" cfg:"openshift_sar"`
 	OpenShiftSARByHost      string   `flag:"openshift-sar-by-host" cfg:"openshift_sar_by_host"`

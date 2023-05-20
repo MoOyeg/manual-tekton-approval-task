@@ -248,6 +248,7 @@ spec:
 
               echo -e "Waiting for Approver Pod Image to be built\n"
               oc wait --for=condition=complete --timeout=600s build/${PIPELINE_RUN_NAME}-oauth-approval-1 -n ${OAUTH_APPROVAL_POD_NAMESPACE}              
+              OAUTH_APPROVER_IMAGE=image-registry.openshift-image-registry.svc:5000/${OAUTH_APPROVAL_POD_NAMESPACE}/${PIPELINE_RUN_NAME}-oauth-approval:latest
               echo -e "Approver Pod Image Built\n"
             fi
           fi
@@ -273,6 +274,7 @@ spec:
 
               echo -e "Waiting for Oauth Proxy image to be built\n"
               oc wait --for=condition=complete --timeout=600s build/${PIPELINE_RUN_NAME}-oauth-proxy-image-1 -n ${OAUTH_APPROVAL_POD_NAMESPACE}              
+              OPENSHIFT_OAUTH_PROXY_IMAGE=image-registry.openshift-image-registry.svc:5000/${OAUTH_APPROVAL_POD_NAMESPACE}/${PIPELINE_RUN_NAME}-oauth-proxy-image:latest
               echo -e "Oauth Proxy Image Built\n"
             fi
           fi
@@ -370,7 +372,7 @@ spec:
                       -n ${OAUTH_APPROVAL_POD_NAMESPACE}
               containers:
                 - name: openshift-oauth-proxy-listener
-                  image: ${OAUTH_IMAGE}
+                  image: ${OPENSHIFT_OAUTH_PROXY_IMAGE}
                   command:
                     - /bin/bash
                   volumeMounts:
@@ -422,10 +424,10 @@ spec:
                       -cookie-secret-file=/memory-storage/session-secret \
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
                       -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-                      -request-message=\"Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\"
+                      -request-message=\"Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\" \
                       -info-link=\"\$OAUTH_ROUTE_NAME)\"
                 - name: oauth-approval-app-pod
-                  image: image-registry.openshift-image-registry.svc:5000/${OAUTH_APPROVAL_POD_NAMESPACE}/${PIPELINE_RUN_NAME}-oauth-approval:latest
+                  image: ${OAUTH_APPROVER_IMAGE}
                   command:
                     - python
                   args:
