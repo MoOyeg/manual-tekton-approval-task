@@ -40,10 +40,25 @@ spec:
     description: Image to use for Web Application that provides UI for Approval of Pipeline
     type: string
     default: ""
-  - name: OPENSHIFT_OAUTH_IMAGE
+  - name: OPENSHIFT_OAUTH_PROXY_IMAGE
     description: OpenShift OAuth Proxy Image
     type: string
-    default: "quay.io/openshift/origin-oauth-proxy@sha256:c92a1480b2628d50d8fe158df9451598406e2e5cc7177cf5efcb81caba120afd"
+    #Leave blank to build new image with customizations
+    default: ""
+    #default: "quay.io/openshift/origin-oauth-proxy@sha256:c92a1480b2628d50d8fe158df9451598406e2e5cc7177cf5efcb81caba120afd"
+  - name: OPENSHIFT_OAUTH_PROXY_SRC
+    description: Source Code to get the code for Web Application that provides oauth proxy
+    type: string
+    default: "https://github.com/MoOyeg/manual-tekton-approval-task.git"
+  - name: OPENSHIFT_OAUTH_PROXY_BRANCH
+    description: Branch to get the code oauth proxy of Pipeline
+    type: string
+    default: "working"
+    #default: "master"
+  - name: OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR
+    description: Context Directory to get the oauth proxy of code of Pipeline
+    type: string
+    default: "oauth-proxy"
   - name: OAUTH_APPROVAL_POD_NAMESPACE
     description: The Namespace to use for the Approval Pod, will default to the Pipeline Namespace
     type: string
@@ -92,7 +107,7 @@ spec:
         - name: OAUTH_APPROVER_PORT
           value: $(params.OAUTH_APPROVER_PORT)
         - name: OAUTH_IMAGE
-          value: $(params.OPENSHIFT_OAUTH_IMAGE)
+          value: $(params.OPENSHIFT_OAUTH_PROXY_IMAGE)
         - name: OAUTH_APPROVER_SRC
           value: $(params.OAUTH_APPROVER_SRC)
         - name: OAUTH_APPROVER_CONTEXT_DIR
@@ -105,6 +120,14 @@ spec:
           value: $(params.PROMOTE_COMMAND)
         - name: PRODUCTION_NAMESPACE
           value: $(params.PRODUCTION_NAMESPACE)
+        - name: OPENSHIFT_OAUTH_PROXY_IMAGE
+          value: $(params.OPENSHIFT_OAUTH_PROXY_IMAGE)
+        - name: OPENSHIFT_OAUTH_PROXY_SRC
+          value: $(params.OPENSHIFT_OAUTH_PROXY_SRC)
+        - name: OPENSHIFT_OAUTH_PROXY_BRANCH
+          value: $(params.OPENSHIFT_OAUTH_PROXY_BRANCH)
+        - name: OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR
+          value: $(params.OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR)
       command:
         - /bin/bash
       args:
@@ -142,7 +165,7 @@ spec:
         - name: OAUTH_APPROVER_PORT
           value: $(params.OAUTH_APPROVER_PORT)
         - name: OAUTH_IMAGE
-          value: $(params.OPENSHIFT_OAUTH_IMAGE)
+          value: $(params.OPENSHIFT_OAUTH_PROXY_IMAGE)
         - name: OAUTH_APPROVER_SRC
           value: $(params.OAUTH_APPROVER_SRC)
         - name: OAUTH_APPROVER_CONTEXT_DIR
@@ -155,6 +178,14 @@ spec:
           value: $(params.PROMOTE_COMMAND)
         - name: PRODUCTION_NAMESPACE
           value: $(params.PRODUCTION_NAMESPACE)
+        - name: OPENSHIFT_OAUTH_PROXY_IMAGE
+          value: $(params.OPENSHIFT_OAUTH_PROXY_IMAGE)
+        - name: OPENSHIFT_OAUTH_PROXY_SRC
+          value: $(params.OPENSHIFT_OAUTH_PROXY_SRC)
+        - name: OPENSHIFT_OAUTH_PROXY_BRANCH
+          value: $(params.OPENSHIFT_OAUTH_PROXY_BRANCH)
+        - name: OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR
+          value: $(params.OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR)
       args:
         - '-cx'
         - |
@@ -199,8 +230,8 @@ spec:
           #Build Approver Pod Image 
           echo -e "Checking if we need to build Approver Pod Image\n"
           if [ -z "${OAUTH_APPROVER_IMAGE}" ]; then
-            echo -e "Check if we need to build Approver Pod Image\n"
-            oc get bc/${PIPELINE_RUN_NAME}-oauth-approval -n test
+            echo -e "Check if we have an already built image\n"
+            oc get bc/${PIPELINE_RUN_NAME}-oauth-approval -n ${OAUTH_APPROVAL_POD_NAMESPACE}
             if [ $? -eq 0 ]; then
               echo -e "Approver Pod Image already exists\n"
             else
@@ -218,6 +249,31 @@ spec:
               echo -e "Waiting for Approver Pod Image to be built\n"
               oc wait --for=condition=complete --timeout=600s build/${PIPELINE_RUN_NAME}-oauth-approval-1 -n ${OAUTH_APPROVAL_POD_NAMESPACE}              
               echo -e "Approver Pod Image Built\n"
+            fi
+          fi
+
+          #Build Oauth Proxy Image 
+          echo -e "Checking if we need to build Oauth Proxy Image\n"
+          if [ -z "${OPENSHIFT_OAUTH_PROXY_IMAGE}" ]; then
+            echo -e "We need to build Approver Pod Image\n"
+            oc get bc/${PIPELINE_RUN_NAME}-oauth-proxy-image -n ${OAUTH_APPROVAL_POD_NAMESPACE}
+            if [ $? -eq 0 ]; then
+              echo -e "Oauth Proxy Image already exists\n"
+            else
+              echo -e "Building Oauth Proxy Pod Image\n"
+              oc new-build golang:1.17-ubi8~${OPENSHIFT_OAUTH_PROXY_SRC}#${OPENSHIFT_OAUTH_PROXY_BRANCH} \
+              --name=${PIPELINE_RUN_NAME}-oauth-proxy-image --strategy=docker \
+              --context-dir=${OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR} \
+              -n ${OAUTH_APPROVAL_POD_NAMESPACE}
+              
+              if [ $? -ne 0 ]; then
+                echo -e "Failed to build oauth proxy Image\n"
+                exit 1
+              fi
+
+              echo -e "Waiting for Oauth Proxy image to be built\n"
+              oc wait --for=condition=complete --timeout=600s build/${PIPELINE_RUN_NAME}-oauth-proxy-image-1 -n ${OAUTH_APPROVAL_POD_NAMESPACE}              
+              echo -e "Oauth Proxy Image Built\n"
             fi
           fi
 
