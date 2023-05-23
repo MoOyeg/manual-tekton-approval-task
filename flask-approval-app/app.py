@@ -128,8 +128,8 @@ def home():
     try:
         #form.authorized_user="testuser"
         form.authorized_user=request.authorization.username
-        headers=request.headers.get('X-Forwarded-Access-Token')
-        print(headers)
+        print(request.headers.get('X-Forwarded-Access-Token'))
+        print(request.headers.get('X-Forwarded-Access-Token'.lower()))
        
     except Exception as e:
         error_msg="Error getting authorized username from Oauth Proxy"
