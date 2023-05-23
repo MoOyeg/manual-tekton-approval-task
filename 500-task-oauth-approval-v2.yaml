@@ -229,11 +229,12 @@ spec:
 
           echo "Create Route for Oauth Pod"
           oc create route passthrough ${PIPELINE_RUN_NAME} --service ${PIPELINE_RUN_NAME} --port oauth-proxy -n ${OAUTH_APPROVAL_POD_NAMESPACE} --dry-run=client -o yaml | oc apply -f - || echo "Route already exists or we couldnt create"
-          
+          pipeline_route_name=$(oc get route ${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} -o jsonpath='{.spec.host}')
+
           echo "Get Route for Pipeline Run if possible"
           console_url=$(oc whoami --show-console)
           if [ -z "${console_url}" ]; then
-            routename=$(oc get route ${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} -o jsonpath='{.spec.host}')
+            routename=${pipeline_route_name}
           else
             routename=$console_url/k8s/ns/${OAUTH_APPROVAL_POD_NAMESPACE}/tekton.dev~v1beta1~PipelineRun/${PIPELINE_RUN_NAME}/logs
           fi
@@ -261,6 +262,7 @@ spec:
           --from-file=UNIQUE_APPROVED_SECRET=/tekton-memory-storage/uniqueapprovedstring \
           --from-file=UNIQUE_DENIED_SECRET=/tekton-memory-storage/uniquedeniedstring \
           --from-literal=OAUTH_ROUTE_NAME=${routename} \
+          --from-literal=PIPELINE_ROUTE_NAME=${pipeline_route_name} \
           -n ${OAUTH_APPROVAL_POD_NAMESPACE}
           
           echo "Creating Necessary Infrastructure Pod For Approval"
@@ -376,9 +378,12 @@ spec:
                       
                       echo openshift-sar=\'{ '\"namespace\"': '\"'$PROMOTE_NAMESPACE'\"','\"resource\"': '\"deployments\"','\"verb\"': '\"list\"' }\' >> /memory-storage/proxy.cfg
                       echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
-                      echo info-link=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
-                      echo pass-user-bearer-token=true >> /memory-storage/proxy.cfg
-                      echo pass-access-token=true >> /memory-storage/proxy.cfg
+                      echo info-link=\'\$PIPELINE_ROUTE_NAME\' >> /memory-storage/proxy.cfg
+                      echo redirect-url=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
+                      echo pass-user-bearer-token = true >> /memory-storage/proxy.cfg
+                      echo pass-access-token = true >> /memory-storage/proxy.cfg
+                      echo set-xauthrequest = true >> /memory-storage/proxy.cfg
+                      echo ssl-insecure-skip-verify = true >> /memory-storage/proxy.cfg
 
                       echo "Starting oauth proxy"
                       oauth-proxy -provider=openshift \
