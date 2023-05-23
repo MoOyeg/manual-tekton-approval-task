@@ -70,70 +70,15 @@ spec:
   - name: PROMOTE_COMMAND
     description: The command this pipeline should run to promote e.g oc patch deploy or oc tag
     type: string
-    default: "promote-test"
-  - name: PRODUCTION_NAMESPACE
+    default: 'oc get deployments'
+  - name: PROMOTE_NAMESPACE
     description: The namespace the PROMOTE_COMMAND will be run on. We will also scope tokens to this namespace
     type: string
-    default: "promote-namespace"
+    default: "default"
   volumes:
     - name: tekton-memory-storage
       emptyDir:
         medium: Memory
-  sidecars:
-    - name: oauth-tekton-prep
-      image: quay.io/openshift/origin-cli:$(params.OC_VERSION)
-      volumeMounts:
-        - mountPath: /tekton-memory-storage
-          name: tekton-memory-storage
-      env:
-        - name: PIPELINE_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: PIPELINE_RUN_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.labels['tekton.dev/pipelineRun']
-        - name: TASK_SERVICEACCOUNTNAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.serviceAccountName
-        - name: OC_VERSION
-          value: $(params.OC_VERSION) 
-        - name: OAUTH_APPROVAL_POD_SERVICEACCOUNT
-          value: $(params.OAUTH_APPROVAL_POD_SERVICEACCOUNT)
-        - name: OAUTH_PROXY_PORT
-          value: $(params.OAUTH_PROXY_PORT)
-        - name: OAUTH_APPROVER_PORT
-          value: $(params.OAUTH_APPROVER_PORT)
-        - name: OAUTH_IMAGE
-          value: $(params.OPENSHIFT_OAUTH_PROXY_IMAGE)
-        - name: OAUTH_APPROVER_SRC
-          value: $(params.OAUTH_APPROVER_SRC)
-        - name: OAUTH_APPROVER_CONTEXT_DIR
-          value: $(params.OAUTH_APPROVER_CONTEXT_DIR)
-        - name: OAUTH_APPROVER_BRANCH
-          value: $(params.OAUTH_APPROVER_BRANCH)
-        - name: OAUTH_APPROVER_IMAGE
-          value: $(params.OAUTH_APPROVER_IMAGE)
-        - name: PROMOTE_COMMAND
-          value: $(params.PROMOTE_COMMAND)
-        - name: PRODUCTION_NAMESPACE
-          value: $(params.PRODUCTION_NAMESPACE)
-        - name: OPENSHIFT_OAUTH_PROXY_IMAGE
-          value: $(params.OPENSHIFT_OAUTH_PROXY_IMAGE)
-        - name: OPENSHIFT_OAUTH_PROXY_SRC
-          value: $(params.OPENSHIFT_OAUTH_PROXY_SRC)
-        - name: OPENSHIFT_OAUTH_PROXY_BRANCH
-          value: $(params.OPENSHIFT_OAUTH_PROXY_BRANCH)
-        - name: OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR
-          value: $(params.OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR)
-      command:
-        - /bin/bash
-      args:
-        - '-cx'
-        - |
-          echo "Test"
   steps:
     - name: create-approval-infrastructure-pod
       #image: quay.io/openshift/origin-cli:$(params.OC_VERSION) Need an image with oc and git
@@ -176,8 +121,8 @@ spec:
           value: $(params.OAUTH_APPROVER_IMAGE)
         - name: PROMOTE_COMMAND
           value: $(params.PROMOTE_COMMAND)
-        - name: PRODUCTION_NAMESPACE
-          value: $(params.PRODUCTION_NAMESPACE)
+        - name: PROMOTE_NAMESPACE
+          value: $(params.PROMOTE_NAMESPACE)
         - name: OPENSHIFT_OAUTH_PROXY_IMAGE
           value: $(params.OPENSHIFT_OAUTH_PROXY_IMAGE)
         - name: OPENSHIFT_OAUTH_PROXY_SRC
@@ -265,7 +210,7 @@ spec:
               oc new-build ${OPENSHIFT_OAUTH_PROXY_SRC}#${OPENSHIFT_OAUTH_PROXY_BRANCH} \
               --name=${PIPELINE_RUN_NAME}-oauth-proxy-image --strategy=docker \
               --context-dir=${OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR} \
-              --image-stream="openshift/golang:1.18-ubi7" \
+              --image="image-registry.openshift-image-registry.svc:5000/openshift/golang:1.17-ubi8" \
               -n ${OAUTH_APPROVAL_POD_NAMESPACE}
               
               if [ $? -ne 0 ]; then
@@ -285,9 +230,14 @@ spec:
           echo "Create Route for Oauth Pod"
           oc create route passthrough ${PIPELINE_RUN_NAME} --service ${PIPELINE_RUN_NAME} --port oauth-proxy -n ${OAUTH_APPROVAL_POD_NAMESPACE} --dry-run=client -o yaml | oc apply -f - || echo "Route already exists or we couldnt create"
           
-          echo "Get Create Route for Oauth Pod"
-          routename=$(oc get route ${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} -o jsonpath='{.spec.host}')
-
+          echo "Get Route for Pipeline Run if possible"
+          console_url=$(oc whoami --show-console)
+          if [ -z "${console_url}" ]; then
+            routename=$(oc get route ${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} -o jsonpath='{.spec.host}')
+          else
+            routename=$console_url/k8s/ns/${OAUTH_APPROVAL_POD_NAMESPACE}/tekton.dev~v1beta1~PipelineRun/${PIPELINE_RUN_NAME}/logs
+          fi
+          
           echo "Annotate ServiceAccount for Pipeline"
           oc -n ${OAUTH_APPROVAL_POD_NAMESPACE} annotate serviceaccount ${OAUTH_APPROVAL_POD_SERVICEACCOUNT} --overwrite=true serviceaccounts.openshift.io/oauth-redirectreference.first='{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"'${PIPELINE_RUN_NAME}'"}}'
           
@@ -299,9 +249,17 @@ spec:
 
           echo "Create a sessionid to help compare oauth pod and tekton pipelinerun"
           echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c6) | tee -a /tekton-memory-storage/tektonsecret >/dev/null           
-        
+
+          echo -e "Create a Secret String to Represent Approved Action\n"
+          echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c43) | tee -a /tekton-memory-storage/uniqueapprovedstring >/dev/null
+
+          echo -e "Create a String to Represent Denied\n"
+          echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c43) | tee -a /tekton-memory-storage/uniquedeniedstring >/dev/null 
+
           oc create secret generic ${PIPELINE_RUN_NAME}-tekton-secret \
           --from-file=TEKTON_INSTANCE_SECRET=/tekton-memory-storage/tektonsecret \
+          --from-file=UNIQUE_APPROVED_SECRET=/tekton-memory-storage/uniqueapprovedstring \
+          --from-file=UNIQUE_DENIED_SECRET=/tekton-memory-storage/uniquedeniedstring \
           --from-literal=OAUTH_ROUTE_NAME=${routename} \
           -n ${OAUTH_APPROVAL_POD_NAMESPACE}
           
@@ -357,18 +315,10 @@ spec:
                       echo -e "Create a Secret for the Oauth Proxy\n"
                       echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c43)  | tee -a /memory-storage/session-secret >/dev/null
 
-                      echo -e "Create a Secret String to Represent Approved Action\n"
-                      echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c43) | tee -a /memory-storage/uniqueapprovedstring >/dev/null
-
-                      echo -e "Create a String to Represent Denied\n"
-                      echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c43) | tee -a /memory-storage/uniquedeniedstring >/dev/null 
-
                       echo -e "Create a String for Approval App Cookie Secret\n"
                       echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c43) | tee -a /memory-storage/appcookiesecret >/dev/null
 
                       oc create secret generic ${PIPELINE_RUN_NAME}-oauth-secret \
-                      --from-file=UNIQUE_APPROVED_SECRET=/memory-storage/uniqueapprovedstring \
-                      --from-file=UNIQUE_DENIED_SECRET=/memory-storage/uniquedeniedstring \
                       --from-file=APP_COOKIE_SECRET=/memory-storage/appcookiesecret \
                       -n ${OAUTH_APPROVAL_POD_NAMESPACE}
 
@@ -376,6 +326,15 @@ spec:
               containers:
                 - name: openshift-oauth-proxy-listener
                   image: ${OPENSHIFT_OAUTH_PROXY_IMAGE}
+                  env:
+                    - name: OAUTH_APPROVER_PORT
+                      value: \"${OAUTH_APPROVER_PORT}\"
+                    - name: PIPELINE_RUN_NAME
+                      value: \"${PIPELINE_RUN_NAME}\"
+                    - name: PROMOTE_COMMAND
+                      value: \"${PROMOTE_COMMAND}\"
+                    - name: PROMOTE_NAMESPACE
+                      value: \"${PROMOTE_NAMESPACE}\"
                   command:
                     - /bin/bash
                   volumeMounts:
@@ -414,21 +373,27 @@ spec:
                           temp_counter=$((temp_counter-1))
                         done
                       fi
+                      
+                      echo openshift-sar=\'{ '\"namespace\"': '\"'$PROMOTE_NAMESPACE'\"','\"resource\"': '\"deployments\"','\"verb\"': '\"list\"' }\' >> /memory-storage/proxy.cfg
+                      echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
+                      echo info-link=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
+                      echo pass-user-bearer-token=true >> /memory-storage/proxy.cfg
+                      echo pass-access-token=true >> /memory-storage/proxy.cfg
 
                       echo "Starting oauth proxy"
                       oauth-proxy -provider=openshift \
                       -request-logging=true \
                       -https-address=:8888 \
                       -http-address= \
+                      -config=/memory-storage/proxy.cfg \
                       -email-domain=* \
                       -upstream=http://localhost:8080 \
                       -tls-cert=/memory-storage/tls.crt \
                       -tls-key=/memory-storage/tls.key \
                       -cookie-secret-file=/memory-storage/session-secret \
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
-                      -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-                      -request-message=\"Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\" \
-                      -info-link=\"\$OAUTH_ROUTE_NAME\"
+                      -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt                    
+                      
                 - name: oauth-approval-app-pod
                   image: ${OAUTH_APPROVER_IMAGE}
                   command:
@@ -454,5 +419,6 @@ spec:
                         name: ${PIPELINE_RUN_NAME}-tekton-secret
                     - secretRef:
                         name: ${PIPELINE_RUN_NAME}-oauth-secret
+                   
           """ | oc apply -f -
           echo "Please verify this secret on Oauth Page - $(cat /tekton-memory-storage/tektonsecret)"

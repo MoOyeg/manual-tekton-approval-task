@@ -126,8 +126,10 @@ def home():
         onfailure_update_disk(error_msg)
         
     try:
-        form.authorized_user="testuser"
-        #form.authorized_user=request.authorization.username
+        #form.authorized_user="testuser"
+        form.authorized_user=request.authorization.username
+        headers=request.headers.get('X-Forwarded-Access-Token')
+        print(headers)
        
     except Exception as e:
         error_msg="Error getting authorized username from Oauth Proxy"
@@ -136,6 +138,16 @@ def home():
     
     logger.info("Approval Requested for Pipeline Run Name: %s",form.pipelinerun)
     return render_template('approval.html', postform=form)
+
+@app.route("/ready",methods=['GET'])
+def ready():
+    '''Check if App is Ready'''
+    if get_app_valid_status():
+        logger.info("Ready Page Accessed")
+        return "Success", 200
+    else:
+        logger.error("App is not ready")
+        return "Failure", 500
 
 
 @app.route("/approval_status",methods=['POST'])
@@ -185,7 +197,8 @@ def approval_status():
         logger.error("{}-{}".format(error_msg,e))
         return onfailure_update_disk(error_msg)
     
-    return return_msg         
+    return return_msg    
+     
 
 if __name__ == '__main__':
     logger.info("Starting Approval App") 
