@@ -384,7 +384,8 @@ spec:
                       echo pass-access-token = true >> /memory-storage/proxy.cfg
                       echo set-xauthrequest = true >> /memory-storage/proxy.cfg
                       echo ssl-insecure-skip-verify = true >> /memory-storage/proxy.cfg
-
+                      echo pass-authorization-header=true >> /memory-storage/proxy.cfg
+                      
                       echo "Starting oauth proxy"
                       oauth-proxy -provider=openshift \
                       -request-logging=true \
