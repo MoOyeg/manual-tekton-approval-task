@@ -419,7 +419,9 @@ spec:
                     - name: PROMOTE_NAMESPACE
                       value: \"${PROMOTE_NAMESPACE}\"
                     - name: APPROVAL_FILE_LOCATION
-                      value: \"/memory-storage/approval_secret\"              
+                      value: \"/memory-storage/approval_secret\" 
+                    - name: TOKEN_FILE_LOCATION
+                      value: \"/memory-storage/token\"                                  
                   envFrom:
                     - secretRef:
                         name: ${PIPELINE_RUN_NAME}-tekton-secret
