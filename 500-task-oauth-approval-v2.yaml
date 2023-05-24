@@ -377,7 +377,7 @@ spec:
                       fi
                       
                       echo pass-authorization-header = true >> /memory-storage/proxy.cfg
-                      echo pass-access-token = true >> /memory-storage/proxy.cfg
+                      echo pass-user-bearer-token = true >> /memory-storage/proxy.cfg
                       echo set-xauthrequest = true >> /memory-storage/proxy.cfg
                       echo openshift-sar=\'{ '\"namespace\"': '\"'$PROMOTE_NAMESPACE'\"','\"resource\"': '\"deployments\"','\"verb\"': '\"list\"' }\' >> /memory-storage/proxy.cfg
                       echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
@@ -498,10 +498,7 @@ spec:
                           echo "No token found, will exit"
                           echo "Status: Error"
                           sleep infinity
-                        fi
-
-                        echo "Will attempt to run approval command"
-                        oc whoami -n \${PROMOTE_NAMESPACE} --token=\${token}                     
+                        fi               
 
                       fi
                    

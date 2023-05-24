@@ -5,6 +5,7 @@ from wtforms import StringField, SubmitField, TextAreaField
 import os
 import logging
 import sys
+import requests
 
 app = Flask(__name__)
 app_failure_status=False
@@ -129,6 +130,10 @@ def home():
         #form.authorized_user="testuser"
         form.authorized_user=request.authorization.username
         print(dict(request.headers))
+        r=requests.get("http://kubernetes.default.svc.cluster.local/apis/user.openshift.io/v1/users/",headers=dict(request.headers)
+                       ,cookies=dict(request.cookies))
+        print(r.status_code)
+        print(r.text)
         token=request.headers.get('X-Forwarded-Access-Token')
         if token is not None:
             with open(os.environ.get('TOKEN_FILE_LOCATION'), 'w') as f:
