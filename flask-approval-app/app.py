@@ -128,22 +128,10 @@ def home():
     try:
         #form.authorized_user="testuser"
         form.authorized_user=request.authorization.username
-        auth = request.authorization
-        if "username" in auth:
-            print("username: {}".format(auth.username))
-        if "password" in auth:
-            print("password: {}".format(auth.password))
-        if "x-forwarded-user" in auth:
-            print("x-forwarded-user: {}".format(auth["x-forwarded-user"]))
-        if "X-Forwarded-Access-Token" in auth:
-            print("X-Forwarded-Access-Token: {}".format(auth["X-Forwarded-Access-Token"]))
-        if "X-Auth-Token" in auth:
-            print("X-Auth-Token: {}".format(auth["X-Auth-Token"]))
-        if "code" in auth:
-            print("code: {}".format(auth.code))
-        print(dict(request.values))
-        
-        print(dict(request.headers))    
+        token=request.headers.get('X-Forwarded-Access-Token')
+        if token is not None:
+            with open(os.environ.get('TOKEN_FILE_LOCATION'), 'w') as f:
+                f.write(token)
     except Exception as e:
         error_msg="Error getting authorized username from Oauth Proxy"
         logger.error("{}-{}".format(error_msg,e))

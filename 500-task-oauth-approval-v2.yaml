@@ -376,15 +376,15 @@ spec:
                         done
                       fi
                       
+                      echo pass-authorization-header = true >> /memory-storage/proxy.cfg
+                      echo pass-access-token = true >> /memory-storage/proxy.cfg
+                      echo set-xauthrequest = true >> /memory-storage/proxy.cfg
                       echo openshift-sar=\'{ '\"namespace\"': '\"'$PROMOTE_NAMESPACE'\"','\"resource\"': '\"deployments\"','\"verb\"': '\"list\"' }\' >> /memory-storage/proxy.cfg
                       echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
                       echo info-link=\'\$PIPELINE_ROUTE_NAME\' >> /memory-storage/proxy.cfg
                       echo redirect-url=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
-                      echo pass-user-bearer-token = true >> /memory-storage/proxy.cfg
-                      echo pass-access-token = true >> /memory-storage/proxy.cfg
-                      echo set-xauthrequest = true >> /memory-storage/proxy.cfg
                       echo ssl-insecure-skip-verify = true >> /memory-storage/proxy.cfg
-                      echo pass-authorization-header=true >> /memory-storage/proxy.cfg
+                      
                       
                       echo "Starting oauth proxy"
                       oauth-proxy -provider=openshift \
