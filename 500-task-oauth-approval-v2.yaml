@@ -398,9 +398,9 @@ spec:
                       -tls-key=/memory-storage/tls.key \
                       -cookie-secret-file=/memory-storage/session-secret \
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
-                      -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt                    
-                      
-                - name: oauth-approval-app-pod
+                      -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt &> /memory-storage/oauth-logs.txt                    
+                    
+                - name: oauth-approval-uiapp-pod
                   image: ${OAUTH_APPROVER_IMAGE}
                   command:
                     - python
@@ -427,6 +427,83 @@ spec:
                         name: ${PIPELINE_RUN_NAME}-tekton-secret
                     - secretRef:
                         name: ${PIPELINE_RUN_NAME}-oauth-secret
+                - name: oauth-approval-action-pod
+                  image: quay.io/openshift/origin-cli:${OC_VERSION}
+                  command:
+                    - /bin/bash
+                  volumeMounts:
+                    - name: memory-storage
+                      mountPath: /memory-storage
+                  env:
+                    - name: OAUTH_APPROVER_PORT
+                      value: \"${OAUTH_APPROVER_PORT}\"
+                    - name: PIPELINE_RUN_NAME
+                      value: \"${PIPELINE_RUN_NAME}\"
+                    - name: PROMOTE_COMMAND
+                      value: \"${PROMOTE_COMMAND}\"
+                    - name: PROMOTE_NAMESPACE
+                      value: \"${PROMOTE_NAMESPACE}\"
+                    - name: APPROVAL_FILE_LOCATION
+                      value: \"/memory-storage/approval_secret\" 
+                    - name: TOKEN_FILE_LOCATION
+                      value: \"/memory-storage/token\"                                  
+                  envFrom:
+                    - secretRef:
+                        name: ${PIPELINE_RUN_NAME}-tekton-secret
+                    - secretRef:
+                        name: ${PIPELINE_RUN_NAME}-oauth-secret
+                  args:
+                    - -cx
+                    - |
+                      echo "Checking if oauth approval ui pod is ready"
+                      while [ curl -s -o /dev/null -w "%{http_code}" http://localhost:${OAUTH_APPROVER_PORT} != "200" ]; do
+                        echo "Waiting for oauth approval ui pod to be ready"
+                        sleep 5
+                      done
+
+                      echo "Checking if we have recieved an approval/disapproval or error"
+                      while [ ! -f \${APPROVAL_FILE_LOCATION} ]; do
+                        echo "Waiting for approval/disapproval or error"
+                        sleep 5
+                      done
+
+                      sleep 3
+                      echo "Checking what approval_status we recived"
+                      approval_status=\$(cat \${APPROVAL_FILE_LOCATION})
+                      
+                      if [ -z "\${approval_status}" ]; then
+                        echo "No approval_status found, will exit"
+                        echo "Response: Error"
+                        echo "Status: Error"
+                        sleep infinity
+                      fi
+
+                      if [ "\${approval_status}" = \${UNIQUE_DENIED_SECRET} ]; then
+                        echo "Response: Denied"
+                        echo "Status: Denied"
+                        sleep infinity
+
+                      elif [ "\${approval_status}" = \${UNIQUE_APPROVED_SECRET} ]; then
+                        echo "Response: Approved"
+
+                        echo "Checking if Token File Exists"
+                        if [ ! -f \${TOKEN_FILE_LOCATION} ]; then
+                          echo "No token file found,will try to get token from oauth logs"
+                          cat /memory-storage/oauth-logs.txt | grep --color -oP '.*/oauth/callback\?code=(.*)\&.*' | sed 's/.*\/oauth\/callback?code=\(.*\)\&.*/\1/g' > \${TOKEN_FILE_LOCATION}
+                        fi
+
+                        echo "Checking if we have a token"
+                        token=\$(cat \${TOKEN_FILE_LOCATION})
+                        if [ -z "\${token}" ]; then
+                          echo "No token found, will exit"
+                          echo "Status: Error"
+                          sleep infinity
+                        fi
+
+                        echo "Will attempt to run approval command"
+                        oc whoami -n \${PROMOTE_NAMESPACE} --token=\${token}                     
+
+                      fi
                    
           """ | oc apply -f -
           echo "Please verify this secret on Oauth Page - $(cat /tekton-memory-storage/tektonsecret)"

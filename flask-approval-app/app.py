@@ -128,6 +128,7 @@ def home():
     try:
         #form.authorized_user="testuser"
         form.authorized_user=request.authorization.username
+        print(dict(request.headers))
         token=request.headers.get('X-Forwarded-Access-Token')
         if token is not None:
             with open(os.environ.get('TOKEN_FILE_LOCATION'), 'w') as f:

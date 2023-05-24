@@ -279,7 +279,7 @@ func getTemplates() *template.Template {
     <div class="container">
       <div style="color: #3c763d;background-color: #dff0d8; border-color: #d6e9c6;padding: 15px; margin-bottom: 20px; border: 1px solid transparent; border-radius: 4px;">
         <a href="#" style=" text-decoration: none; float: right; font-size: 21px; font-weight: 700; line-height: 1; color: #000; text-shadow: 0 1px 0 #fff; filter: alpha(opacity=20); opacity: .2;" data-dismiss="alert" aria-label="close">&times;</a>
-        <strong>Important!</strong> {{ .RequestMessage }} : <a href={{ .InfoLink }}>Pipeline</a>.
+        <strong>Important!</strong> {{ .RequestMessage }} : <a href={{ .InfoLink }}>PipelineRun Link</a>.
       </div>
     </div>
     {{ end }}
