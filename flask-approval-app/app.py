@@ -12,7 +12,7 @@ app_failure_status=False
 app_failure_message=""
 app_approved=False
 app_dispproved=False
-global app_return_code=""
+app_return_code=""
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)

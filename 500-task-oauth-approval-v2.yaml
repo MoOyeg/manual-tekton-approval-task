@@ -68,9 +68,9 @@ spec:
     type: string
     default: ""
   - name: PROMOTE_COMMAND
-    description: The command this pipeline should run to promote e.g oc patch deploy or oc tag
+    description: The command this pipeline should run to promote e.g oc patch deploy or oc tag.Set to oc version for easy test.Should be full command with oc without namespace.Namespace is obtained from OAUTH_APPROVAL_POD_NAMESPACE
     type: string
-    default: 'oc get deployments'
+    default: 'oc version'
   volumes:
     - name: tekton-memory-storage
       emptyDir:
@@ -496,7 +496,10 @@ spec:
                           echo "No token found, will exit"
                           echo "Status: Error"
                           sleep infinity
-                        fi               
+                        fi
+
+                        echo "Running Provided Approval Command with token"
+                        ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token ${token} && echo "Status: Success" || echo "Status: Error"
 
                       fi
                    
