@@ -148,7 +148,7 @@ def home():
 def status():
     '''Return Code for App, Instance Secret if no approval status'''
     global app_return_code
-    if app_return_code = "":
+    if app_return_code == "":
         return os.environ.get('TEKTON_INSTANCE_SECRET'),200
     return app_return_code, 200
 
