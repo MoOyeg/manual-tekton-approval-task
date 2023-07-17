@@ -130,6 +130,21 @@ spec:
       args:
         - '-cx'
         - |
+          
+          ERROR_STRINGS=("ERROR_TOKEN_NOT_FOUND","ERROR_APPROVAL_CMD_FAILED","ERROR_UI_APP_FAILURE","ERROR_COULD_NOT_READ_APPROVAL_RESPONSE")
+          
+          #CleanUp Function. e.g if script reaches tekton failure timeout
+          function task_cleanup()
+          {
+          #Delete Approval Pod
+          (( oc delete pod/${PIPELINE_RUN_NAME}-generated-approval-pod -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo "Deleted Approval Pod") || echo "Could not delete Approval Pod" )
+
+          #Delete Approval Pod Route
+          (( oc delete route/${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo "Deleted Approval Route") || echo "Could not delete Approval Route" )
+          }
+                      
+          trap task_cleanup SIGINT SIGTERM ERR EXIT
+                      
           echo -e "Checking Service Account for Approval Pod\n"
           if [ -z "${OAUTH_APPROVAL_POD_SERVICEACCOUNT}" ]; then
             echo -e "Will use ${TASK_SERVICEACCOUNTNAME} as service account for approval pod\n"
@@ -147,7 +162,7 @@ spec:
             echo -e "Creating Service Account for Approval Pod\n"
             oc -n ${OAUTH_APPROVAL_POD_NAMESPACE} create serviceaccount ${OAUTH_APPROVAL_POD_SERVICEACCOUNT}            
           fi
-
+          
           echo -e "Create Service for Oauth Pod\n"
           echo """
             kind: Service
@@ -344,6 +359,7 @@ spec:
                   args:
                     - '-cx'
                     - |
+
                       echo "Checking if we have the requirements to start oauth proxy"
                       temp_counter=10
                       if [ ! -f /memory-storage/session-secret ]; then
@@ -499,9 +515,32 @@ spec:
                         fi
 
                         echo "Running Provided Approval Command with token"
-                        ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token ${token} && echo "Status: Success" || echo "Status: Error"
+                        (( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token ${token} && echo "Status: Success" ) || echo "Status: Error" )
 
                       fi
                    
           """ | oc apply -f -
-          echo "Please verify this secret on Oauth Page - $(cat /tekton-memory-storage/tektonsecret)"
+
+          echo "Please provide approval for Pipeline at ${PIPELINE_ROUTE_NAME}"
+          echo "Please verify this secret on Login Page before Approval - $(cat /tekton-memory-storage/tektonsecret)"         
+          return_code=$(curl ${PIPELINE_RUN_NAME}-${OAUTH_APPROVAL_POD_NAMESPACE}.svc.cluster.local/status)
+          
+          while ! ([ ${return_code} = "${TEKTON_INSTANCE_SECRET}" ] || [ ${return_code} = "${UNIQUE_APPROVED_SECRET}" ] || [ ${return_code} = "${UNIQUE_DENIED_SECRET}" ])
+          do
+            echo " Pipeline Approval Pod Not Yet Ready"
+            return_code=$(curl ${PIPELINE_RUN_NAME}-${OAUTH_APPROVAL_POD_NAMESPACE}.svc.cluster.local/status)
+            sleep 5
+          done
+
+          if [ ${return_code} = "${TEKTON_INSTANCE_SECRET}" ]
+          then
+             while ([ ${return_code} = "${TEKTON_INSTANCE_SECRET}" ])
+             do
+               echo "Pipeline Approval Pod is Required"
+               echo "Please provide approval for Pipeline at ${PIPELINE_ROUTE_NAME}"
+               echo "Please verify this secret on Login Page before Approval - $(cat /tekton-memory-storage/tektonsecret)
+             done
+          fi
+
+
+
