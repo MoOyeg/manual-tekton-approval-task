@@ -12,6 +12,7 @@ app_failure_status=False
 app_failure_message=""
 app_approved=False
 app_dispproved=False
+global app_return_code=""
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -64,6 +65,7 @@ def set_approval_status(approval_string):
     '''Set Approval Status'''
     global app_approved
     global app_dispproved
+    global app_return_code
     
     try:
         with open(os.environ.get('APPROVAL_FILE_LOCATION'), 'w') as f:
@@ -77,10 +79,12 @@ def set_approval_status(approval_string):
     if approval_string == os.environ.get('UNIQUE_APPROVED_SECRET'):
         logger.info("Promotion Process has been Approved, will continue Pipeline Run")
         app_approved=True
+        app_return_code=approval_string
         return "Promotion Process has been Approved, will continue Pipeline Run"
     elif approval_string == os.environ.get('UNIQUE_DENIED_SECRET'):
         logger.info("Promotion Process has been Denied, will end Pipeline Run")
         app_dispproved=True
+        app_return_code=approval_string
         return "Promotion Process has been Denied, will end Pipeline Run"
 
 def get_approval_status():
@@ -127,13 +131,7 @@ def home():
         onfailure_update_disk(error_msg)
         
     try:
-        #form.authorized_user="testuser"
         form.authorized_user=request.authorization.username
-        # print(dict(request.headers))
-        # r=requests.get("http://kubernetes.default.svc.cluster.local/apis/user.openshift.io/v1/users/",headers=dict(request.headers)
-        #                ,cookies=dict(request.cookies))
-        # print(r.status_code)
-        # print(r.text)
         token=request.headers.get('X-Forwarded-Access-Token')
         if token is not None:
             with open(os.environ.get('TOKEN_FILE_LOCATION'), 'w') as f:
@@ -145,6 +143,13 @@ def home():
     
     logger.info("Approval Requested for Pipeline Run Name: %s",form.pipelinerun)
     return render_template('approval.html', postform=form)
+
+@app.route("/status",methods=['GET'])
+def status():
+    '''Return Code for App, Empty if no approval status'''
+    global app_return_code
+    return app_return_code, 200
+
 
 @app.route("/ready",methods=['GET'])
 def ready():

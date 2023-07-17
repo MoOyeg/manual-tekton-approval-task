@@ -62,7 +62,7 @@ spec:
   - name: OAUTH_APPROVAL_POD_NAMESPACE
     description: The Namespace to use for the Approval Pod, will default to the Pipeline Namespace
     type: string
-    default: ""
+    default: "tekton-manual-demo-preprod"
   - name: OAUTH_APPROVAL_POD_SERVICEACCOUNT
     description: The Service Account to use for the Approval Pod, will default to pipeline service account if in same namespace as pipeline
     type: string
@@ -71,10 +71,6 @@ spec:
     description: The command this pipeline should run to promote e.g oc patch deploy or oc tag
     type: string
     default: 'oc get deployments'
-  - name: PROMOTE_NAMESPACE
-    description: The namespace the PROMOTE_COMMAND will be run on. We will also scope tokens to this namespace
-    type: string
-    default: "default"
   volumes:
     - name: tekton-memory-storage
       emptyDir:
@@ -121,8 +117,6 @@ spec:
           value: $(params.OAUTH_APPROVER_IMAGE)
         - name: PROMOTE_COMMAND
           value: $(params.PROMOTE_COMMAND)
-        - name: PROMOTE_NAMESPACE
-          value: $(params.PROMOTE_NAMESPACE)
         - name: OPENSHIFT_OAUTH_PROXY_IMAGE
           value: $(params.OPENSHIFT_OAUTH_PROXY_IMAGE)
         - name: OPENSHIFT_OAUTH_PROXY_SRC
@@ -131,6 +125,8 @@ spec:
           value: $(params.OPENSHIFT_OAUTH_PROXY_BRANCH)
         - name: OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR
           value: $(params.OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR)
+        - name: OAUTH_APPROVAL_POD_NAMESPACE
+          value: $(params.OAUTH_APPROVAL_POD_NAMESPACE)
       args:
         - '-cx'
         - |
@@ -335,8 +331,8 @@ spec:
                       value: \"${PIPELINE_RUN_NAME}\"
                     - name: PROMOTE_COMMAND
                       value: \"${PROMOTE_COMMAND}\"
-                    - name: PROMOTE_NAMESPACE
-                      value: \"${PROMOTE_NAMESPACE}\"
+                    - name: OAUTH_APPROVAL_POD_NAMESPACE
+                      value: \"${OAUTH_APPROVAL_POD_NAMESPACE}\"
                   command:
                     - /bin/bash
                   volumeMounts:
@@ -376,10 +372,11 @@ spec:
                         done
                       fi
                       
-                      echo pass-authorization-header = true >> /memory-storage/proxy.cfg
+                      echo pass-access-token = true >> /memory-storage/proxy.cfg
                       echo pass-user-bearer-token = true >> /memory-storage/proxy.cfg
                       echo set-xauthrequest = true >> /memory-storage/proxy.cfg
-                      echo openshift-sar=\'{ '\"namespace\"': '\"'$PROMOTE_NAMESPACE'\"','\"resource\"': '\"deployments\"','\"verb\"': '\"list\"' }\' >> /memory-storage/proxy.cfg
+                      echo scope = \'user:info user:check-access role:admin:\$OAUTH_APPROVAL_POD_NAMESPACE:!\' >> /memory-storage/proxy.cfg
+                      echo openshift-delegate-urls=\'{ '\"/\"' : {'\"resource\"': '\"pods\"','\"namespace\"':'\"'$OAUTH_APPROVAL_POD_NAMESPACE'\"','\"verb\"':'\"create\"'}}\' >> /memory-storage/proxy.cfg                     
                       echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
                       echo info-link=\'\$PIPELINE_ROUTE_NAME\' >> /memory-storage/proxy.cfg
                       echo redirect-url=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
@@ -400,7 +397,7 @@ spec:
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
                       -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt &> /memory-storage/oauth-logs.txt                    
                     
-                - name: oauth-approval-uiapp-pod
+                - name: oauth-approval-uiapp-container
                   image: ${OAUTH_APPROVER_IMAGE}
                   command:
                     - python
@@ -416,8 +413,8 @@ spec:
                       value: \"${PIPELINE_RUN_NAME}\"
                     - name: PROMOTE_COMMAND
                       value: \"${PROMOTE_COMMAND}\"
-                    - name: PROMOTE_NAMESPACE
-                      value: \"${PROMOTE_NAMESPACE}\"
+                    - name: OAUTH_APPROVAL_POD_NAMESPACE
+                      value: \"${OAUTH_APPROVAL_POD_NAMESPACE}\"
                     - name: APPROVAL_FILE_LOCATION
                       value: \"/memory-storage/approval_secret\" 
                     - name: TOKEN_FILE_LOCATION
@@ -427,7 +424,8 @@ spec:
                         name: ${PIPELINE_RUN_NAME}-tekton-secret
                     - secretRef:
                         name: ${PIPELINE_RUN_NAME}-oauth-secret
-                - name: oauth-approval-action-pod
+                
+                - name: oauth-approval-action-container
                   image: quay.io/openshift/origin-cli:${OC_VERSION}
                   command:
                     - /bin/bash
@@ -441,8 +439,8 @@ spec:
                       value: \"${PIPELINE_RUN_NAME}\"
                     - name: PROMOTE_COMMAND
                       value: \"${PROMOTE_COMMAND}\"
-                    - name: PROMOTE_NAMESPACE
-                      value: \"${PROMOTE_NAMESPACE}\"
+                    - name: OAUTH_APPROVAL_POD_NAMESPACE
+                      value: \"${OAUTH_APPROVAL_POD_NAMESPACE}\"
                     - name: APPROVAL_FILE_LOCATION
                       value: \"/memory-storage/approval_secret\" 
                     - name: TOKEN_FILE_LOCATION
