@@ -1,0 +1,22 @@
+{
+  "name": "simple-web-app",
+  "version": "1.0.0",
+  "description": "Simple Web Application with Node.js and Express",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gcintir/simple-web-app.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gcintir/simple-web-app/issues"
+  },
+  "homepage": "https://github.com/gcintir/simple-web-app#readme",
+  "dependencies": {
+    "express": "^4.18.1"
+  }
+}
