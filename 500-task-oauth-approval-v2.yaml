@@ -6,10 +6,15 @@ metadata:
     app.kubernetes.io/version: "0.1"
   annotations:
     tekton.dev/pipelines.minVersion: "0.12.1"
-    tekton.dev/platforms: "linux/amd64,linux/s390x,linux/ppc64le,linux/arm64"
+    tekton.dev/platforms: "linux/amd64"
 spec:
   description: >-
     This tasks provides manual approval for pipelines in openshift using the openshift oauth proxy.
+  results:
+    - name: approval_status
+      description: Provides a result for approval request.Result will be approved or disapproved
+    - name: task_run_status
+      description: Provides a result for the success or failure of the task. Result will be success or failure
   params:
   - name: OC_VERSION
     description: The OpenShift Version to use
@@ -136,14 +141,36 @@ spec:
           #CleanUp Function. e.g if script reaches tekton failure timeout
           function task_cleanup()
           {
+          
           #Delete Approval Pod
-          (( oc delete pod/${PIPELINE_RUN_NAME}-generated-approval-pod -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo "Deleted Approval Pod") || echo "Could not delete Approval Pod" )
+          (( oc delete pod/${PIPELINE_RUN_NAME}-generated-approval-pod -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted Approval Pod\n") || echo -e "Could not delete Approval Pod\n" )
 
+          #Delete Approval Pod Service
+          (( oc delete svc/${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted Approval Service\n") || echo -e "Could not delete Approval Service\n" )
+          
           #Delete Approval Pod Route
-          (( oc delete route/${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo "Deleted Approval Route") || echo "Could not delete Approval Route" )
+          (( oc delete route/${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted Approval Route\n") || echo -e "Could not delete Approval Route\n" )
+          
+          #Delete Secret
+          (( oc delete secret/${PIPELINE_RUN_NAME}-oauth-secret -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted oauth-secret\n") || echo -e "Could not delete oauth secret\n" )
+
+          #Delete IS
+          (( oc delete build/${PIPELINE_RUN_NAME}-oauth-approval-1 -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted oauth-Build\n") || echo -e "Could not delete oauth build\n" )
+          (( oc delete build/${PIPELINE_RUN_NAME}-oauth-proxy-image-1 -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted oauth-Build\n") || echo -e "Could not delete oauth build\n" )
+
+          #Delete BC
+          (( oc delete bc/${PIPELINE_RUN_NAME}-oauth-approval -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted Approval BC\n") || echo -e "Could not delete Approval BC\n" )
+          (( oc delete bc/${PIPELINE_RUN_NAME}-oauth-proxy-image -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted Proxy BC\n") || echo -e "Could not delete Proxy BC\n" )
+
+          #Delete IS
+          (( oc delete is/${PIPELINE_RUN_NAME}-oauth-approval -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted oauth-Build\n") || echo -e "Could not delete oauth build\n" )
+          (( oc delete is/${PIPELINE_RUN_NAME}-oauth-proxy-image -n ${OAUTH_APPROVAL_POD_NAMESPACE} && echo -e "Deleted oauth-Build\n") || echo -e "Could not delete oauth build\n" )
+          
+          
+          exit 0
           }
                       
-          trap task_cleanup SIGINT SIGTERM ERR EXIT
+          trap task_cleanup SIGINT SIGTERM SIGSTOP
                       
           echo -e "Checking Service Account for Approval Pod\n"
           if [ -z "${OAUTH_APPROVAL_POD_SERVICEACCOUNT}" ]; then
@@ -240,12 +267,12 @@ spec:
 
           echo "Create Route for Oauth Pod"
           oc create route passthrough ${PIPELINE_RUN_NAME} --service ${PIPELINE_RUN_NAME} --port oauth-proxy -n ${OAUTH_APPROVAL_POD_NAMESPACE} --dry-run=client -o yaml | oc apply -f - || echo "Route already exists or we couldnt create"
-          pipeline_route_name=$(oc get route ${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} -o jsonpath='{.spec.host}')
+          PIPELINE_ROUTE_NAME=$(oc get route ${PIPELINE_RUN_NAME} -n ${OAUTH_APPROVAL_POD_NAMESPACE} -o jsonpath='{.spec.host}')
 
           echo "Get Route for Pipeline Run if possible"
           console_url=$(oc whoami --show-console)
           if [ -z "${console_url}" ]; then
-            routename=${pipeline_route_name}
+            routename=${PIPELINE_ROUTE_NAME}
           else
             routename=$console_url/k8s/ns/${OAUTH_APPROVAL_POD_NAMESPACE}/tekton.dev~v1beta1~PipelineRun/${PIPELINE_RUN_NAME}/logs
           fi
@@ -273,7 +300,7 @@ spec:
           --from-file=UNIQUE_APPROVED_SECRET=/tekton-memory-storage/uniqueapprovedstring \
           --from-file=UNIQUE_DENIED_SECRET=/tekton-memory-storage/uniquedeniedstring \
           --from-literal=OAUTH_ROUTE_NAME=${routename} \
-          --from-literal=PIPELINE_ROUTE_NAME=${pipeline_route_name} \
+          --from-literal=PIPELINE_ROUTE_NAME=${PIPELINE_ROUTE_NAME} \
           -n ${OAUTH_APPROVAL_POD_NAMESPACE}
           
           echo "Creating Necessary Infrastructure Pod For Approval"
@@ -388,11 +415,11 @@ spec:
                         done
                       fi
                       
-                      echo pass-access-token = true >> /memory-storage/proxy.cfg
-                      echo pass-user-bearer-token = true >> /memory-storage/proxy.cfg
-                      echo set-xauthrequest = true >> /memory-storage/proxy.cfg
-                      echo scope = \'user:info user:check-access role:admin:\$OAUTH_APPROVAL_POD_NAMESPACE:!\' >> /memory-storage/proxy.cfg
-                      echo openshift-delegate-urls=\'{ '\"/\"' : {'\"resource\"': '\"pods\"','\"namespace\"':'\"'$OAUTH_APPROVAL_POD_NAMESPACE'\"','\"verb\"':'\"create\"'}}\' >> /memory-storage/proxy.cfg                     
+                      
+                      echo pass-user-bearer-token=true >> /memory-storage/proxy.cfg
+                      echo set-xauthrequest=true >> /memory-storage/proxy.cfg
+                      echo scope=\'user:info user:check-access role:admin:\$OAUTH_APPROVAL_POD_NAMESPACE:!\' >> /memory-storage/proxy.cfg
+                      echo openshift-delegate-urls=\'{ '\"/\"' : {'\"resource\"': '\"namespaces\"','\"verb\"':'\"get\"'}}\' >> /memory-storage/proxy.cfg                     
                       echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
                       echo info-link=\'\$PIPELINE_ROUTE_NAME\' >> /memory-storage/proxy.cfg
                       echo redirect-url=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
@@ -409,6 +436,8 @@ spec:
                       -upstream=http://localhost:8080 \
                       -tls-cert=/memory-storage/tls.crt \
                       -tls-key=/memory-storage/tls.key \
+                      -skip-auth-regex=^/ready$ \
+                      -skip-auth-regex=^/status$ \
                       -cookie-secret-file=/memory-storage/session-secret \
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
                       -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt &> /memory-storage/oauth-logs.txt                    
@@ -482,7 +511,7 @@ spec:
                       done
 
                       sleep 3
-                      echo "Checking what approval_status we recived"
+                      echo "Checking what approval_status we received"
                       approval_status=\$(cat \${APPROVAL_FILE_LOCATION})
                       
                       if [ -z "\${approval_status}" ]; then
@@ -515,32 +544,87 @@ spec:
                         fi
 
                         echo "Running Provided Approval Command with token"
-                        (( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token ${token} && echo "Status: Success" ) || echo "Status: Error" )
+                        echo "${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token}"
+                        /bin/bash -c 'sleep infinity'
+                        (( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token} && echo "Status: Success" ) || echo "Status: Error" )                   
 
                       fi
                    
           """ | oc apply -f -
 
-          echo "Please provide approval for Pipeline at ${PIPELINE_ROUTE_NAME}"
-          echo "Please verify this secret on Login Page before Approval - $(cat /tekton-memory-storage/tektonsecret)"         
-          return_code=$(curl ${PIPELINE_RUN_NAME}-${OAUTH_APPROVAL_POD_NAMESPACE}.svc.cluster.local/status)
-          
-          while ! ([ ${return_code} = "${TEKTON_INSTANCE_SECRET}" ] || [ ${return_code} = "${UNIQUE_APPROVED_SECRET}" ] || [ ${return_code} = "${UNIQUE_DENIED_SECRET}" ])
+        
+          #Confirm Approval Pod is Ready
+          return_code=$(curl -k -s -o /dev/null -w "%{http_code}" https://${PIPELINE_ROUTE_NAME}/status)
+          return_code_success=$?
+
+          while ! ([ ${return_code_success} -eq 0 ] && [ ${return_code} -eq 200 ])
           do
-            echo " Pipeline Approval Pod Not Yet Ready"
-            return_code=$(curl ${PIPELINE_RUN_NAME}-${OAUTH_APPROVAL_POD_NAMESPACE}.svc.cluster.local/status)
+            return_code=$(curl -k -s -o /dev/null -w "%{http_code}" https://${PIPELINE_ROUTE_NAME}/status)
+            return_code_success=$?
+            echo -e "Pipeline Approval Pod Not Yet Ready\n"
             sleep 5
           done
 
-          if [ ${return_code} = "${TEKTON_INSTANCE_SECRET}" ]
-          then
-             while ([ ${return_code} = "${TEKTON_INSTANCE_SECRET}" ])
-             do
-               echo "Pipeline Approval Pod is Required"
-               echo "Please provide approval for Pipeline at ${PIPELINE_ROUTE_NAME}"
-               echo "Please verify this secret on Login Page before Approval - $(cat /tekton-memory-storage/tektonsecret)
-             done
-          fi
+          #Provide Information on where to approve/deny
+          echo -e "---------------------------------------------------------------\n"
+          echo -e "---------------------------------------------------------------\n"
+          echo "Please provide approval for Pipeline at ${PIPELINE_ROUTE_NAME}"
+          echo "Please verify this secret on Login Page before Approval - $(cat /tekton-memory-storage/tektonsecret)"         
+          echo -e "---------------------------------------------------------------\n"
+          echo -e "---------------------------------------------------------------\n"
+
+          #Confirm Approval Status,Check for Errors and Cleanup Loop
+          while :
+          do
+            #Set Required Variables
+            TEKTON_INSTANCE_SECRET=$(cat /tekton-memory-storage/tektonsecret)
+            UNIQUE_APPROVED_SECRET=$(cat /tekton-memory-storage/uniqueapprovedstring)
+            UNIQUE_DENIED_SECRET=$(cat /tekton-memory-storage/uniquedeniedstring)
+            return_value=$(curl -k https://${PIPELINE_ROUTE_NAME}/status)
+            return_code=$(curl -k -s -o /dev/null -w "%{http_code}" https://${PIPELINE_ROUTE_NAME}/status)
+            return_code_success=$?
+
+            #Check if User has provided approval
+            if ([ "${return_value}" = "${TEKTON_INSTANCE_SECRET}" ] && [ ${return_code_success} -eq 0 ] && [ ${return_code} -eq 200 ])
+            then
+              return_value=$(curl -k https://${PIPELINE_ROUTE_NAME}/status)
+              return_code=$(curl -k -s -o /dev/null -w "%{http_code}" https://${PIPELINE_ROUTE_NAME}/status)
+              return_code_success=$?
+              sleep 10
+
+              echo -e "Waiting For Approval to be Provided\n"
+              echo -e "---------------------------------------------------------------\n"
+              echo -e "---------------------------------------------------------------\n"
+              echo "Please provide approval for Pipeline at ${PIPELINE_ROUTE_NAME}"
+              echo "Please verify this secret on Login Page before Approval - $(cat /tekton-memory-storage/tektonsecret)"         
+              echo -e "---------------------------------------------------------------\n"
+              echo -e "---------------------------------------------------------------\n"
+              continue
+            fi
+
+            #Check if User has provided approval
+            if ([ "${return_value}" = "${UNIQUE_APPROVED_SECRET}" ] && [ ${return_code_success} -eq 0 ] && [ ${return_code} -eq 200 ])
+            then
+              echo -e "Pipeline was Approved\n"
+              echo "approved" | tee $(results.approval_status.path)
+              echo "success" | tee $(results.task_run_status.path)
+              break
+            fi
+
+            #Check if User has provided denial
+            if ([ "${return_value}" = "${UNIQUE_DENIED_SECRET}" ] && [ ${return_code_success} -eq 0 ] && [ ${return_code} -eq 200 ])
+            then
+              echo -e "Pipeline was Approved\n"
+              echo "disapproved" | tee $(results.approval_status.path)
+              echo "success" | tee $(results.task_run_status.path)
+              break
+            fi          
+          done
+
+          #Finally run Cleanup
+          task_cleanup   
 
 
-
+#echo openshift-delegate-urls  =\'{ '\"/\"' : {'\"resource\"': '\"pods\"','\"namespace\"':'\"'$OAUTH_APPROVAL_POD_NAMESPACE'\"','\"verb\"':'\"create\"'}}\' >> /memory-storage/proxy.cfg
+#oc get pods -n tekton-manual-demo-preprod --token sha256~qipRdCKgAOyd0ERc_kopUQP_wJLbTowrGC7ShI83hbU --server https://172.30.0.1:443 --insecure-skip-tls-verify=true
+##echo pass-access-token=true >> /memory-storage/proxy.cfg
