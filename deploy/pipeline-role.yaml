@@ -9,6 +9,7 @@ rules:
     resources:
       - pods
       - services
+      - serviceaccounts
       - secrets
       - routes
       - buildconfigs
@@ -23,3 +24,4 @@ rules:
       - get
       - list
       - watch
+      - patch

@@ -124,6 +124,7 @@ def home():
     try:        
         form.pipelinerun=os.environ.get('PIPELINE_RUN_NAME')
         form.approval_cmd=os.environ.get('PROMOTE_COMMAND')
+        print("approval_cmd --- {}".format(os.environ.get('PROMOTE_COMMAND')))
         form.tekton_instance_name=os.environ.get('TEKTON_INSTANCE_SECRET')        
     except Exception as e:
         error_msg="Error getting $PIPELINE_RUN_NAME or $PROMOTE_COMMAND from environment will exit"

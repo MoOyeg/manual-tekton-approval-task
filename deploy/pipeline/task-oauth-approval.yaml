@@ -73,9 +73,8 @@ spec:
     type: string
     default: ""
   - name: PROMOTE_COMMAND
-    description: The command this pipeline should run to promote e.g oc patch deploy or oc tag.Set to oc version for easy test.Should be full command with oc without namespace.Namespace is obtained from OAUTH_APPROVAL_POD_NAMESPACE
+    description: The command this pipeline should run to promote e.g oc patch deploy or oc tag.Should be full command with oc without namespace.Namespace is obtained from OAUTH_APPROVAL_POD_NAMESPACE
     type: string
-    default: 'oc version'
   volumes:
     - name: tekton-memory-storage
       emptyDir:
@@ -255,7 +254,8 @@ spec:
                 echo -e "Failed to build oauth proxy Image\n"
                 exit 1
               fi
-
+              
+              sleep 5
               echo -e "Waiting for Oauth Proxy image to be built\n"
               oc wait --for=condition=complete --timeout=600s build/${PIPELINE_RUN_NAME}-oauth-proxy-image-1 -n ${OAUTH_APPROVAL_POD_NAMESPACE}              
               OPENSHIFT_OAUTH_PROXY_IMAGE=image-registry.openshift-image-registry.svc:5000/${OAUTH_APPROVAL_POD_NAMESPACE}/${PIPELINE_RUN_NAME}-oauth-proxy-image:latest
@@ -545,11 +545,9 @@ spec:
 
                         echo "Running Provided Approval Command with token"
                         echo "${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token}"
-                        /bin/bash -c 'sleep infinity'
-                        (( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token} && echo "Status: Success" ) || echo "Status: Error" )                   
-
-                      fi
-                   
+                        (( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token} && echo "Status: Success" ) || echo "Status: Error" ) 
+                                          
+                      fi                
           """ | oc apply -f -
 
         

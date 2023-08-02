@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: pipelinerun-version2
+  labels:
+    tekton.dev/pipeline: testflask-pipeline
+spec:
+  #Creating PipelineRun as Pending
+  status: "PipelineRunPending"
+  params:
+    - name: PROMOTE_COMMAND
+      value: 'oc tag tekton-manual-demo-preprod/sample-manual-app:version2 tekton-manual-demo-preprod/sample-manual-app:latest'
+  pipelineRef:
+    name: pipeline-oauth-test
+  serviceAccountName: pipeline
+  timeout: 1h0m0s
+
