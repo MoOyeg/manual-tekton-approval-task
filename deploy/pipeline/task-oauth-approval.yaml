@@ -415,7 +415,6 @@ spec:
                         done
                       fi
                       
-                      
                       echo pass-user-bearer-token=true >> /memory-storage/proxy.cfg
                       echo set-xauthrequest=true >> /memory-storage/proxy.cfg
                       echo scope=\'user:info user:check-access role:admin:\$OAUTH_APPROVAL_POD_NAMESPACE:!\' >> /memory-storage/proxy.cfg
@@ -423,8 +422,7 @@ spec:
                       echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
                       echo info-link=\'\$PIPELINE_ROUTE_NAME\' >> /memory-storage/proxy.cfg
                       echo redirect-url=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
-                      echo ssl-insecure-skip-verify = true >> /memory-storage/proxy.cfg
-                      
+                      echo ssl-insecure-skip-verify = true >> /memory-storage/proxy.cfg                     
                       
                       echo "Starting oauth proxy"
                       oauth-proxy -provider=openshift \
@@ -544,9 +542,10 @@ spec:
                         fi
 
                         echo "Running Provided Approval Command with token"
-                        echo "${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token}"
-                        (( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token} && echo "Status: Success" ) || echo "Status: Error" ) 
-                                          
+                        #echo "${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token}"
+                        /bin/bash -c 'sleep 10000'
+                        #(( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token} && echo "Status: Success" ) || echo "Status: Error" ) 
+
                       fi                
           """ | oc apply -f -
 
@@ -620,7 +619,7 @@ spec:
           done
 
           #Finally run Cleanup
-          task_cleanup   
+          #task_cleanup   
 
 
 #echo openshift-delegate-urls  =\'{ '\"/\"' : {'\"resource\"': '\"pods\"','\"namespace\"':'\"'$OAUTH_APPROVAL_POD_NAMESPACE'\"','\"verb\"':'\"create\"'}}\' >> /memory-storage/proxy.cfg
