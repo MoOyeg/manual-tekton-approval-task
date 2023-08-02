@@ -134,7 +134,7 @@ def home():
     try:
         form.authorized_user=request.authorization.username
         token=request.headers.get('X-Forwarded-Access-Token')
-        print(token)
+        print("token1--{}".format(token))
         if token is not None:
             with open(os.environ.get('TOKEN_FILE_LOCATION'), 'w') as f:
                 f.write(token)

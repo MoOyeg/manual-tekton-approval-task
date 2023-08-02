@@ -169,7 +169,7 @@ spec:
           exit 0
           }
                       
-          trap task_cleanup SIGINT SIGTERM SIGSTOP
+          #trap task_cleanup SIGINT SIGTERM SIGSTOP
                       
           echo -e "Checking Service Account for Approval Pod\n"
           if [ -z "${OAUTH_APPROVAL_POD_SERVICEACCOUNT}" ]; then
@@ -527,12 +527,6 @@ spec:
                       elif [ "\${approval_status}" = \${UNIQUE_APPROVED_SECRET} ]; then
                         echo "Response: Approved"
 
-                        echo "Checking if Token File Exists"
-                        if [ ! -f \${TOKEN_FILE_LOCATION} ]; then
-                          echo "No token file found,will try to get token from oauth logs"
-                          cat /memory-storage/oauth-logs.txt | grep --color -oP '.*/oauth/callback\?code=(.*)\&.*' | sed 's/.*\/oauth\/callback?code=\(.*\)\&.*/\1/g' > \${TOKEN_FILE_LOCATION}
-                        fi
-
                         echo "Checking if we have a token"
                         token=\$(cat \${TOKEN_FILE_LOCATION})
                         if [ -z "\${token}" ]; then
@@ -625,3 +619,10 @@ spec:
 #echo openshift-delegate-urls  =\'{ '\"/\"' : {'\"resource\"': '\"pods\"','\"namespace\"':'\"'$OAUTH_APPROVAL_POD_NAMESPACE'\"','\"verb\"':'\"create\"'}}\' >> /memory-storage/proxy.cfg
 #oc get pods -n tekton-manual-demo-preprod --token sha256~qipRdCKgAOyd0ERc_kopUQP_wJLbTowrGC7ShI83hbU --server https://172.30.0.1:443 --insecure-skip-tls-verify=true
 ##echo pass-access-token=true >> /memory-storage/proxy.cfg
+
+
+                        # echo "Checking if Token File Exists"
+                        # if [ ! -f \${TOKEN_FILE_LOCATION} ]; then
+                        #   echo "No token file found,will try to get token from oauth logs"
+                        #   cat /memory-storage/oauth-logs.txt | grep --color -oP '.*/oauth/callback\?code=(.*)\&.*' | sed 's/.*\/oauth\/callback?code=\(.*\)\&.*/\1/g' > \${TOKEN_FILE_LOCATION}
+                        # fi
