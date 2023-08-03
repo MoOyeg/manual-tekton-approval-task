@@ -415,6 +415,7 @@ spec:
                         done
                       fi
                       
+                      echo pass-access-token=true >> /memory-storage/proxy.cfg
                       echo pass-user-bearer-token=true >> /memory-storage/proxy.cfg
                       echo set-xauthrequest=true >> /memory-storage/proxy.cfg
                       echo scope=\'user:info user:check-access role:admin:\$OAUTH_APPROVAL_POD_NAMESPACE:!\' >> /memory-storage/proxy.cfg
@@ -422,7 +423,8 @@ spec:
                       echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
                       echo info-link=\'\$PIPELINE_ROUTE_NAME\' >> /memory-storage/proxy.cfg
                       echo redirect-url=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
-                      echo ssl-insecure-skip-verify = true >> /memory-storage/proxy.cfg                     
+                      echo ssl-insecure-skip-verify = true >> /memory-storage/proxy.cfg
+                      
                       
                       echo "Starting oauth proxy"
                       oauth-proxy -provider=openshift \
@@ -438,7 +440,7 @@ spec:
                       -skip-auth-regex=^/status$ \
                       -cookie-secret-file=/memory-storage/session-secret \
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
-                      -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt &> /memory-storage/oauth-logs.txt                    
+                      -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt &> /memory-storage/oauth-logs.txt       
                     
                 - name: oauth-approval-uiapp-container
                   image: ${OAUTH_APPROVER_IMAGE}
