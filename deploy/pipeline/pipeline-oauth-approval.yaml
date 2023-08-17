@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: pipeline-oauth-test
+spec:
+  params:
+    - name: PROMOTE_COMMAND
+      description: The command this pipeline should run to promote e.g oc patch deploy or oc tag.Should be full command with oc without namespace.Namespace is obtained from OAUTH_APPROVAL_POD_NAMESPACE
+      type: string
+  tasks:
+    - name: oauth-promote
+      params:
+        - name: PROMOTE_COMMAND
+          value: $(params.PROMOTE_COMMAND)
+      taskRef:
+        kind: Task
+        name: oauth-promote

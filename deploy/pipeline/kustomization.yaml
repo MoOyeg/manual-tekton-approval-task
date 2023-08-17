@@ -1,0 +1,6 @@
+namespace: tekton-manual-demo-pipeline
+resources:
+  - task-oauth-approval.yaml
+  - pipeline-oauth-approval.yaml
+  - pipelinerun-version1.yaml
+  - pipelinerun-version2.yaml
