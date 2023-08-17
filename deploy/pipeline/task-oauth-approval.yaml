@@ -132,7 +132,7 @@ spec:
         - name: OAUTH_APPROVAL_POD_NAMESPACE
           value: $(params.OAUTH_APPROVAL_POD_NAMESPACE)
       args:
-        - '-cx'
+        - '-c'
         - |
           
           ERROR_STRINGS=("ERROR_TOKEN_NOT_FOUND","ERROR_APPROVAL_CMD_FAILED","ERROR_UI_APP_FAILURE","ERROR_COULD_NOT_READ_APPROVAL_RESPONSE")
@@ -169,7 +169,7 @@ spec:
           exit 0
           }
                       
-          #trap task_cleanup SIGINT SIGTERM SIGSTOP
+          trap task_cleanup SIGINT SIGTERM SIGSTOP
                       
           echo -e "Checking Service Account for Approval Pod\n"
           if [ -z "${OAUTH_APPROVAL_POD_SERVICEACCOUNT}" ]; then
