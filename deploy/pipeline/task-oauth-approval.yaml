@@ -329,7 +329,7 @@ spec:
                   command:
                     - /bin/bash
                   args:
-                    - '-cx'
+                    - '-c'
                     - |
                       echo "Extract TLS Cert/Key for Oauth Pod"
                       temp_counter=10
@@ -353,10 +353,10 @@ spec:
                       echo -e "Extracted TLS Key for Oauth Pod\n"
 
                       echo -e "Create a Secret for the Oauth Proxy\n"
-                      echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c43)  | tee -a /memory-storage/session-secret >/dev/null
+                      echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c31)  | tee -a /memory-storage/session-secret >/dev/null
 
                       echo -e "Create a String for Approval App Cookie Secret\n"
-                      echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c43) | tee -a /memory-storage/appcookiesecret >/dev/null
+                      echo $(head /dev/urandom | tr -dc A-Za-z0-9 | head -c31) | tee -a /memory-storage/appcookiesecret >/dev/null
 
                       oc create secret generic ${PIPELINE_RUN_NAME}-oauth-secret \
                       --from-file=APP_COOKIE_SECRET=/memory-storage/appcookiesecret \
@@ -384,7 +384,7 @@ spec:
                     - secretRef:
                         name: ${PIPELINE_RUN_NAME}-tekton-secret
                   args:
-                    - '-cx'
+                    - '-c'
                     - |
 
                       echo "Checking if we have the requirements to start oauth proxy"
@@ -413,22 +413,21 @@ spec:
                           sleep 1
                           temp_counter=$((temp_counter-1))
                         done
-                      fi
-                      
-                      echo pass-access-token=true >> /memory-storage/proxy.cfg
-                      echo pass-user-bearer-token=true >> /memory-storage/proxy.cfg
-                      echo set-xauthrequest=true >> /memory-storage/proxy.cfg
+                      fi 
+                       
                       echo scope=\'user:info user:check-access role:admin:\$OAUTH_APPROVAL_POD_NAMESPACE:!\' >> /memory-storage/proxy.cfg
                       echo openshift-delegate-urls=\'{ '\"/\"' : {'\"resource\"': '\"namespaces\"','\"verb\"':'\"get\"'}}\' >> /memory-storage/proxy.cfg                     
                       echo request-message=\'Please confirm this secret value - \$TEKTON_INSTANCE_SECRET from Pipelinerun before login\' >> /memory-storage/proxy.cfg
                       echo info-link=\'\$PIPELINE_ROUTE_NAME\' >> /memory-storage/proxy.cfg
                       echo redirect-url=\'\$OAUTH_ROUTE_NAME\' >> /memory-storage/proxy.cfg
                       echo ssl-insecure-skip-verify = true >> /memory-storage/proxy.cfg
-                      
-                      
+                      sleep 5
+
                       echo "Starting oauth proxy"
                       oauth-proxy -provider=openshift \
-                      -request-logging=true \
+                      -pass-access-token=true \
+                      -pass-user-bearer-token=true \
+                      -set-xauthrequest=true \
                       -https-address=:8888 \
                       -http-address= \
                       -config=/memory-storage/proxy.cfg \
@@ -440,8 +439,8 @@ spec:
                       -skip-auth-regex=^/status$ \
                       -cookie-secret-file=/memory-storage/session-secret \
                       -openshift-service-account=${TASK_SERVICEACCOUNTNAME} \
-                      -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt &> /memory-storage/oauth-logs.txt       
-                    
+                      -openshift-ca=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt 
+
                 - name: oauth-approval-uiapp-container
                   image: ${OAUTH_APPROVER_IMAGE}
                   command:
@@ -496,7 +495,7 @@ spec:
                     - secretRef:
                         name: ${PIPELINE_RUN_NAME}-oauth-secret
                   args:
-                    - -cx
+                    - -c
                     - |
                       echo "Checking if oauth approval ui pod is ready"
                       while [ curl -s -o /dev/null -w "%{http_code}" http://localhost:${OAUTH_APPROVER_PORT} != "200" ]; do
@@ -538,9 +537,8 @@ spec:
                         fi
 
                         echo "Running Provided Approval Command with token"
-                        #echo "${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token}"
-                        /bin/bash -c 'sleep 10000'
-                        #(( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token} && echo "Status: Success" ) || echo "Status: Error" ) 
+                        echo "${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token}"
+                        (( ${PROMOTE_COMMAND} -n ${OAUTH_APPROVAL_POD_NAMESPACE} --token \${token} && echo "Status: Success" ) || echo "Status: Error" ) 
 
                       fi                
           """ | oc apply -f -
@@ -615,16 +613,7 @@ spec:
           done
 
           #Finally run Cleanup
-          #task_cleanup   
+          task_cleanup   
 
 
-#echo openshift-delegate-urls  =\'{ '\"/\"' : {'\"resource\"': '\"pods\"','\"namespace\"':'\"'$OAUTH_APPROVAL_POD_NAMESPACE'\"','\"verb\"':'\"create\"'}}\' >> /memory-storage/proxy.cfg
-#oc get pods -n tekton-manual-demo-preprod --token sha256~qipRdCKgAOyd0ERc_kopUQP_wJLbTowrGC7ShI83hbU --server https://172.30.0.1:443 --insecure-skip-tls-verify=true
-##echo pass-access-token=true >> /memory-storage/proxy.cfg
 
-
-                        # echo "Checking if Token File Exists"
-                        # if [ ! -f \${TOKEN_FILE_LOCATION} ]; then
-                        #   echo "No token file found,will try to get token from oauth logs"
-                        #   cat /memory-storage/oauth-logs.txt | grep --color -oP '.*/oauth/callback\?code=(.*)\&.*' | sed 's/.*\/oauth\/callback?code=\(.*\)\&.*/\1/g' > \${TOKEN_FILE_LOCATION}
-                        # fi
