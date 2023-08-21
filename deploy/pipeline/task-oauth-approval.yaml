@@ -35,8 +35,7 @@ spec:
   - name: OAUTH_APPROVER_BRANCH
     description: Branch to get the code for Web Application that provides UI for Approval of Pipeline
     type: string
-    default: "working"
-    #default: "master"
+    default: "main"
   - name: OAUTH_APPROVER_CONTEXT_DIR
     description: Context Directory to get the code for Web Application that provides UI for Approval of Pipeline
     type: string
@@ -58,8 +57,7 @@ spec:
   - name: OPENSHIFT_OAUTH_PROXY_BRANCH
     description: Branch to get the code oauth proxy of Pipeline
     type: string
-    default: "working"
-    #default: "master"
+    default: "main"
   - name: OPENSHIFT_OAUTH_PROXY_CONTEXT_DIR
     description: Context Directory to get the oauth proxy of code of Pipeline
     type: string

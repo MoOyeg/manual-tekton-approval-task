@@ -29,7 +29,7 @@ spec:
     type: Git
     git:
       uri: 'https://github.com/MoOyeg/manual-tekton-approval-task.git'
-      ref: working
+      ref: main
     contextDir: /sample-app
   triggers:
     - type: ImageChange
